@@ -1,4 +1,4 @@
-# keep-trying
+# keep-trying [![Build Status](https://travis-ci.org/machuga/keep-trying.svg?branch=master)](https://travis-ci.org/machuga/keep-trying.svg?branch=master)
 
 A bare-bones function to allow retrying promises up to a given limit.
 
