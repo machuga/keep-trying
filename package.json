@@ -4,8 +4,8 @@
   "description": "A function for creating retryable promises with configurable limit and backoff.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "babel src --presets babel-preset-es2015 --out-dir dist",
-    "test": "mocha --compilers js:babel-core/register --recursive",
+    "build": "",
+    "test": "mocha --require ts-node/register 'test/**/*.spec.ts'",
     "prepublish": "npm run build"
   },
   "repository": {
@@ -24,15 +24,12 @@
   },
   "homepage": "https://github.com/machuga/keep-trying#readme",
   "devDependencies": {
-    "chai": "^3.5.0",
+    "@types/chai": "^4.1.5",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.10.3",
+    "chai": "^4.1.2",
     "mocha": "^5.2.0",
-    "babel-cli": "^6.4.5",
-    "babel-core": "^6.4.5",
-    "babel-preset-es2015": "^6.3.13"
-  },
-  "babel": {
-    "presets": [
-      "es2015"
-    ]
+    "ts-node": "^7.0.1",
+    "typescript": "^3.0.3"
   }
 }

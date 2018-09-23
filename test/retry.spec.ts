@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import keepTrying from '../dist/index';
+import keepTrying from '../src/index';
 
 describe('Retrying a promise', function() {
   it('will only run promise creator once when resolved', function() {
@@ -50,7 +50,7 @@ describe('Retrying a promise', function() {
   it('will log retries when logger is provided', function() {
     let logCount = 0;
     let counter = 0;
-    let logger = function(err) { logCount++; };
+    let logger = function(err : Error) { logCount++; };
     const makePromise = function() {
       return new Promise(function(resolve, reject) {
         counter++;
@@ -93,4 +93,3 @@ describe('Retrying a promise', function() {
     });
   });
 });
-
