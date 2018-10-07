@@ -43,7 +43,7 @@ export interface RetryStatus {
 const keepTrying = (fn: PromiseFunction<any>, options : Options = {}): Promise<any> => {
   const jitter = chooseJitter(options.jitterStrategy || defaults.jitterStrategy);
   const backoff = chooseBackoff(options.backoffStrategy || defaults.backoffStrategy);
-  const maxAttempts = options.maxAttempts || defaults.maxAttempts;
+  const maxAttempts = (typeof options.maxAttempts === 'number') ? options.maxAttempts : defaults.maxAttempts;
   const logger = options.logger || defaults.logger;
   const maxTime = options.maxTime || defaults.maxTime;
   const baseTime = options.baseTime || defaults.baseTime;

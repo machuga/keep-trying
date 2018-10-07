@@ -10,7 +10,7 @@ It is useful when you have some action you need to call that may fail
 the first time.
 
 The API is intended to be very simple, and leverages the native Promises
-available in ES2015.  May be used with Node 4+, any modern browser, or polyfill
+available in ES2015. May be used with Node 6+, any modern browser, or polyfill
 that binds to `window.Promise`.
 
 The `keepTrying` function returns a promise that will always yield the result
@@ -34,24 +34,36 @@ import keepTrying from 'keep-trying';
 `keepTrying` is defined as:
 
 ```
-keepTrying :: () -> { backoff: Integer, max: Integer, logger: (Error) } -> Promise
+keepTrying = (fn: PromiseFunction<any>, options : Options = {}): Promise<any> => {
+
+interface Options {
+  baseTime?: number;
+  maxAttempts?: number;
+  maxTime?: number;
+  backoffStrategy?: BackoffType;
+  jitterStrategy?:  JitterType;
+  logger?(status: RetryStatus): any;
+}
 ```
 
 that is,
 
 - First Argument: A function with no parameters that returns a `Promise` to be
   retried on rejection.
-- Second Argument: An object that accepts:
-  - `backoff`: An integer of milliseconds to be used against a multiplier for
-    delays between retry attempts. Assuming that we have a promise that will
-    always reject, with a backoff of 200, the first try will
-    happen immediately, the second attempt will happen 200ms after rejection,
-    and the third attempt will happen 400ms after the second rejection.
-  - `max`: An integer of how many times to attempt a failed promise. `0` will
+- Second Argument: An `Options` object that accepts:
+  - `baseTime`: An integer of milliseconds to be used as a base delay time for
+    any strategy. With the `exact` strategy, the delay between attempts will always
+    be equal to `baseTime`; `linear` will be `baseTime * attempt`, etc.
+  - `maxAttempts`: An integer of how many times to attempt a failed promise. `0` will
     will cause no retries, `1` will be one retry, etc.
-  - `logger`: A function that accepts an `Error` as an argument.  May be used
-    to log attempts to the console or to a service such as [Bugsnag](http://bugsnag.com)
-    or [Sentry](http://sentry.io).
+  - `maxTime`: An integer of milliseconds to act as an upper bound for how long to
+  - `backoffStrategy`: `exact`, `linear`, or `exponential` stategies can be
+    selected, or a custom backoff strategy of type `BackoffStrategy` may be provided.
+  - `jitterStrategy`: `none`, `full`, or `equal` stategies can be
+    selected, or a custom jitter strategy of type `JitterStrategy` may be provided.
+  - `logger`: A function that accepts a `RetryStatus` object as an argument. May be used
+    to log information on failure/try rates or log errors attempts to the console or to
+    a service such as [Bugsnag](http://bugsnag.com) or [Sentry](http://sentry.io).
 
 ## Examples
 
@@ -75,7 +87,7 @@ const promiseReturningFn = function() {
 // Uses a backoff of 10ms, multipled by the number of the attempt.
 // 150ms is the default, but this example is used in the tests so
 // keeping it fast here is good.
-keepTrying(promiseReturningFn, { max: 3, backoff: 10 }).then(function(msg) {
+keepTrying(promiseReturningFn, { maxAttempts: 3, baseTime: 10 }).then(function(msg) {
   console.log("The promise succeeded!", msg);
 }).catch(function(err) {
   console.debug('The promise failed after all 3 attempts :(');
@@ -87,26 +99,26 @@ keepTrying(promiseReturningFn, { max: 3, backoff: 10 }).then(function(msg) {
 ```
 
 If you want your attempts logged to `console.error` or a service such
-as Bugsnag or Sentry, pass a function that accepts an error as an argument
-to the options object with the key `logger`.
+as Bugsnag or Sentry, pass a function that accepts a `RetryStatus`
+object as an argument to the options object with the key `logger`.
 
 ```js
 keepTrying(promiseReturningFn, {
-  max: 3,
-  backoff: 500,
-  logger: Bugsnag.notifyException
+  maxAttempts: 3,
+  baseTime: 500,
+  logger(status) { Bugsnag.notifyException(status.error) }
 });
 
 // or
 
 keepTrying(promiseReturningFn, {
-  max: 3,
-  backoff: 500,
-  logger: function(err) {
+  maxAttempts: 3,
+  baseTime: 500,
+  logger(status) {
     // You can make any transformations on the error message here
     // err.message is in the following format:
     // "Failed on attempt 1 of 3: actual_error_message"
-    console.debug("promiseReturningFn failed", err);
+    console.debug("promiseReturningFn failed", status.error);
   }
 });
 ```
