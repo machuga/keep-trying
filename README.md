@@ -1,14 +1,13 @@
 # keep-trying [![Build Status](https://travis-ci.org/machuga/keep-trying.svg?branch=master)](https://travis-ci.org/machuga/keep-trying.svg?branch=master)
 
-A bare-bones function to allow retrying promises up to a given limit.
+A minimal function to allow retrying promises up to a given limit.
 
 This library was inspired by some callback retry code I used to use,
 https://github.com/poetic/retryable-promise, and
 https://github.com/valeriangalliat/promise-retryable.
 
 It is useful when you have some action you need to call that may fail
-the first time if a connection is poor, or if a server may not yet have
-a resource ready for consumption.
+the first time.
 
 The API is intended to be very simple, and leverages the native Promises
 available in ES2015.  May be used with Node 4+, any modern browser, or polyfill

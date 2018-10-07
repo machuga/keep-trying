@@ -1,8 +1,8 @@
 import { expect } from 'chai';
-import keepTrying from '../src/index';
+import keepTrying, { RetryStatus } from '../src/index';
 
 describe('Retrying a promise', function() {
-  it('will only run promise creator once when resolved', function() {
+  it('run promise creator once when resolved first try', function() {
     let counter = 0;
     const makePromise = function() {
       return new Promise(function(resolve, reject) {
@@ -15,7 +15,7 @@ describe('Retrying a promise', function() {
     });
   });
 
-  it('will retry till the promise resolves within attempt range', function() {
+  it('retries till the promise resolves within attempt range', function() {
     let counter = 0;
     const makePromise = function() {
       return new Promise(function(resolve, reject) {
@@ -28,12 +28,13 @@ describe('Retrying a promise', function() {
       });
     };
 
-    return keepTrying(makePromise, { backoff: 1, max: 3 }).then(function(count) {
-      expect(count).to.equal(2);
-    });
+    return keepTrying(makePromise, { backoffStrategy: 'exact', baseTime: 1, maxAttempts: 3 })
+      .then(function (count) {
+        expect(count).to.equal(2);
+      });
   });
 
-  it('will give up retrying after the max number of attempts', function() {
+  it('gives up retrying after the max number of attempts', function() {
     let counter = 0;
     const makePromise = function() {
       return new Promise(function(resolve, reject) {
@@ -42,24 +43,54 @@ describe('Retrying a promise', function() {
       });
     };
 
-    return keepTrying(makePromise, { backoff: 1, max: 3 }).catch(function(count) {
-      expect(counter).to.equal(3);
-    });
+    return keepTrying(makePromise, { backoffStrategy: 'exact', baseTime: 1, maxAttempts: 3 })
+      .then(() => {
+        throw new Error('Something went wrong in test');
+      })
+      .catch(function (count) {
+        expect(counter).to.equal(3);
+      });
   });
 
-  it('will log retries when logger is provided', function() {
-    let logCount = 0;
-    let counter = 0;
-    let logger = function(err : Error) { logCount++; };
-    const makePromise = function() {
-      return new Promise(function(resolve, reject) {
-        counter++;
-        reject(new Error(`Rejected: ${counter}`));
+  describe('logging', function () {
+    const makePromise = (state : any) => function () {
+      return new Promise(function (resolve, reject) {
+        state.counter++;
+        reject(new Error(`Rejected: ${state.counter}`));
       });
     };
 
-    return keepTrying(makePromise, { backoff: 1, max: 3, logger }).catch(function(count) {
-      expect(counter).to.equal(logCount);
+    const generateRetry = (state: any, logger: any) =>
+      keepTrying(makePromise(state), { backoffStrategy: 'exact', baseTime: 1, maxAttempts: 3, logger });
+
+    it('logs retries when logger is provided', function () {
+      const state : any = {
+        logCount: 0,
+        counter: 0
+      };
+      const logger = function (status : RetryStatus) { state.logCount++; };
+
+      return generateRetry(state, logger)
+        .catch(function (count) {
+          expect(state.counter).to.equal(state.logCount);
+        });
+    });
+
+    it('logger receives status updates', function () {
+      const state : any = {
+        logCount: 0,
+        counter: 0
+      };
+      const statuses : any = [];
+      const logger = function (status : RetryStatus) {
+        statuses.push(status);
+      };
+
+      return generateRetry(state, logger)
+        .catch(function (count) {
+          expect(statuses).to.have.lengthOf(3);
+          expect(statuses.map((s : RetryStatus) => s.state)).to.deep.equal(['retrying', 'retrying', 'failed']);
+        });
     });
   });
 
@@ -80,16 +111,60 @@ describe('Retrying a promise', function() {
     // Uses a backoff of 10ms, multipled by the number of the attempt.
     // 150ms is the default, but this example is used in the tests so
     // keeping it fast here is good.
-    keepTrying(promiseReturningFn, { max: 3, backoff: 10 }).then(function(msg) {
-      console.log("The promise succeeded!", msg);
+    keepTrying(promiseReturningFn, { backoffStrategy: 'exact', maxAttempts: 3, baseTime: 1 }).then(function(msg) {
     }).catch(function(err) {
-      console.debug('The promise failed after all 3 attempts :(');
-      console.error(err);
 
       // Rethrow the error if you'd like
       throw err;
     }).catch(function(err) {
       expect(err).to.be.an('error');
+    });
+  });
+
+  describe('backoff and jitter', function () {
+    const makePromise = (state: any) => () =>
+      new Promise(function (resolve, reject) {
+        state.times.push(new Date().getTime());
+        reject(new Error(`Rejected: ${state.counter}`));
+      });
+
+    it('exponential strategies increase expontentially', function() {
+      const state: any = {
+        times: [],
+        statuses: []
+      };
+      const logger = function (status: RetryStatus) {
+        state.statuses.push(status);
+      };
+
+      return keepTrying(makePromise(state), { backoffStrategy: 'exponential', jitterStrategy: 'none', baseTime: 10, maxAttempts: 5, logger })
+        .catch(e => {
+          const times = state.statuses.map((s: RetryStatus) => s.nextAttemptIn).filter(Boolean)
+          expect(times).to.eql([20, 40, 80, 160]);
+        });
+    });
+
+    it('increases roughly exponentially with jitter', function() {
+      const state: any = {
+        times: [],
+        statuses: []
+      };
+      const logger = function (status: RetryStatus) {
+        state.statuses.push(status);
+      };
+
+      return keepTrying(makePromise(state), { backoffStrategy: 'exponential', jitterStrategy: 'equal', baseTime: 10, maxAttempts: 5, logger })
+      .then(() => {
+        throw new Error('uh oh');
+      })
+        .catch(e => {
+          const times = state.statuses.map((s: RetryStatus) => s.nextAttemptIn).filter(Boolean)
+          expect(times).to.not.eql([20, 40, 80, 160]);
+          times.forEach((time: number, index: number) => {
+            if (index === 0) { return; }
+            expect(times[index]).to.be.greaterThan(times[index - 1]);
+          });
+        });
     });
   });
 });
