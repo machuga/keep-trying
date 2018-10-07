@@ -1,6 +1,6 @@
 {
   "name": "keep-trying",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A function for creating retryable promises with configurable limit and backoff.",
   "public": true,
   "main": "dist/index.js",

@@ -13,7 +13,7 @@ export type BackoffType = keyof BackoffMap | BackoffStrategy;
 export const strategies : BackoffMap = {
   exact: (value: number) => value,
   linear: (base : number, attempt : number = 1) => base * attempt,
-  exponential: (base: number, attempt: number = 1, maxTime: number = 3000) => Math.min(maxTime, base * 2 ** attempt)
+  exponential: (base: number, attempt: number = 1, maxTime: number = 3000) => Math.min(maxTime, base * Math.pow(2, attempt))
 };
 
 export const choose = (strategy : BackoffType) : BackoffStrategy => {
